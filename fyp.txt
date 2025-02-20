@@ -1,0 +1,22 @@
+clouinary sample link:
+https://res.cloudinary.com/your-cloud-name/video/upload/v1234567/sample-video-2.mp4
+
+
+
+ 'https://api.cloudinary.com/v1_1/dityjpdl6/video/upload', // Replace with your Cloudinary API URL
+ 
+const formData = new FormData();
+    formData.append('file', fileData); // Append the file as part of FormData
+    formData.append('upload_preset', 'bucket'); // Replace with your upload preset
+    formData.append('cloud_name', 'dityjpdl6'); // Replace with your Cloudinary cloud name
+
+
+
+
+npm install axios --legacy-peer-deps
+npm install react-native-fs --legacy-peer-deps
+npm install react-native-image-resizer --legacy-peer-deps
+npm install react-native-progress --legacy-peer-deps
+
+npm install react-native-document-picker --legacy-peer-deps
+npm install ffmpeg-kit-react-native --legacy-peer-deps

@@ -1,0 +1,160 @@
+import React, { useState } from 'react';
+import {
+  SafeAreaView,
+  Text,
+  View,
+  TouchableOpacity,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Vibration,
+} from 'react-native';
+import { s } from 'react-native-wind';
+import Icon from 'react-native-vector-icons/AntDesign';
+import { useNavigation } from '@react-navigation/native';
+import { login } from '../services/api';
+import Add from '../../assets/svg/svgnew/Add';
+import FoodDoodleBackground from './FoodDoodleBackground';
+
+const LoginScreen = () => {
+  const navigation = useNavigation();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleLogin = async () => {
+    console.log('Logging in with email:', email);
+    try {
+      const data = await login(email, password);
+      navigation.navigate('OtpScreen');
+    } catch (error) {
+      console.log('Error registering:', error.message);
+    }
+  };
+
+  const handleSignup = () => {
+    navigation.navigate('SignupScreen');
+  };
+
+  const handleForget = () => {
+    navigation.navigate('LocationScreen');
+  };
+
+  const handleSocialLogin = platform => {
+    console.log(`Logging in with ${platform}`);
+  };
+
+  return (
+    <SafeAreaView style={s`flex-1 bg-gray-900`}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={s`flex-1 justify-center`}>
+        {/* Header with Logo */}
+        <View style={s`items-center mb-12`}>
+          <Text style={[s`text-2xl text-gray-100`, { fontFamily: 'Outfit Bold' }]}>
+            Welcome
+          </Text>
+        </View>
+
+        {/* Login Form */}
+        <View style={s`px-10`}>
+          {/* Email Input */}
+          <View style={s`mb-5`}>
+            <View style={s`flex-row items-center bg-gray-800 rounded-xl px-4 py-2`}>
+              <Icon name="mail" size={20} color="#9CA3AF" />
+              <TextInput
+                style={[s`flex-1 ml-3 text-gray-100`, { fontFamily: 'Outfit-Regular' }]}
+                placeholder="Enter your email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+          </View>
+
+          {/* Password Input */}
+          <View style={s`mb-6`}>
+            <View style={s`flex-row items-center bg-gray-800 rounded-xl px-4 py-2`}>
+              <Icon name="lock" size={20} color="#9CA3AF" />
+              <TextInput
+                style={[s`flex-1 ml-3 text-gray-100`, { fontFamily: 'Outfit-Regular' }]}
+                placeholder="Enter your password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                placeholderTextColor="#9CA3AF"
+              />
+              <TouchableOpacity
+                onPressIn={() => {
+                  setShowPassword(true);
+                  Vibration.vibrate(100);
+                }}
+                onPressOut={() => setShowPassword(false)}
+              >
+                <Icon name={showPassword ? 'eye' : 'eyeo'} size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Forgot Password */}
+          <TouchableOpacity style={s`items-end mb-5`} onPress={handleForget}>
+            <Text style={[s`text-red-400`, { fontFamily: 'Outfit-Medium' }]}>
+              Forgot Password?
+            </Text>
+          </TouchableOpacity>
+
+          {/* Login Button */}
+          <TouchableOpacity
+            style={[s`rounded-2xl py-4 mb- items-center`, { backgroundColor: '#FF3D44' }]}
+            onPress={handleLogin}
+          >
+            <Text style={[s`text-white text-xl`, { fontFamily: 'Outfit-Medium' }]}>
+              Login
+            </Text>
+          </TouchableOpacity>
+
+          {/* Social Login Options */}
+          <View style={s`mb-6`}>
+            {/* Divider */}
+            <View style={s`flex-row items-center mt-7`}>
+              <View style={s`flex-1 h-0.5 bg-gray-700`} />
+              <Text style={[s`mx-4 text-gray-400`, { fontFamily: 'Outfit-Regular' }]}>
+                or continue with
+              </Text>
+              <View style={s`flex-1 h-0.5 bg-gray-700`} />
+            </View>
+            <View style={s`flex-row justify-center space-x-4`}>
+              {/* Google Login Button */}
+              <TouchableOpacity
+                style={s`bg-gray-800 border border-gray-700 rounded-2xl p-4 mt-5 flex-1 items-center flex-row justify-center`}
+                onPress={() => handleSocialLogin('Google')}
+              >
+                <Icon name="google" size={20} color="#DB4437" />
+                <Text style={[s`ml-2 text-gray-100`, { fontFamily: 'Outfit-Medium' }]}>
+                  Google
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Sign Up Link */}
+          <View style={s`flex-row justify-center mt-3`}>
+            <Text style={[s`text-gray-400`, { fontFamily: 'Outfit-Regular' }]}>
+              Don't have an account?{' '}
+            </Text>
+            <TouchableOpacity onPress={handleSignup}>
+              <Text style={[s`text-red-400`, { fontFamily: 'Outfit-Medium' }]}>
+                Sign Up
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+};
+
+export default LoginScreen;

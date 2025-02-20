@@ -1,0 +1,148 @@
+import React from 'react';
+import { Text, View, StyleSheet, StatusBar } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native'; // Import NavigationContainer
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'; // Import 
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import HomeScreen from './src/screens/HomeScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import SignupScreen from './src/screens/SignupScreen';
+import ForgetScreen from './src/screens/ForgetScreen';
+import Home from './assets/svg/svgnew/Home';
+import CircleIcon from './assets/svg/svgnew/CircleIcon';
+import List from './assets/svg/svgnew/List';
+import AddScreen from './src/screens/AddScreen';
+import Add from './assets/svg/svgnew/Add';
+import OrderScreen from './src/screens/OrderScreen';
+import Fav from './assets/svg/svgnew/Fav';
+import ProfileScreen from './src/screens/ProfileScreen';
+import Profile from './assets/svg/svgnew/Profile';
+
+// Initialize the bottom tab navigator
+const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
+
+
+function AuthStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="LoginScreen" component={LoginScreen} />
+      <Stack.Screen name="SignUp" component={SignupScreen} />
+      <Stack.Screen name="ForgetScreen" component={ForgetScreen} />
+     <Stack.Screen name="MainApp" component={MainAppTabs} />
+    </Stack.Navigator>
+  );
+}
+
+
+function MainAppTabs(){
+  return (
+    <Tab.Navigator
+    initialRouteName="HomeScreen"
+      screenOptions={{
+        tabBarStyle: {
+          backgroundColor: '#f2f2f2', // Tab bar background color
+          paddingLeft: 25,
+          paddingRight: 25,
+          paddingBottom: 0,
+          shadowOpacity: 0, // Remove shadow
+          elevation: 0, // Remove elevation (Android shadow)
+          borderTopWidth: 0, // Remove border at the top
+          borderBottomWidth: 0, // Remove border at the bottom
+          position: 'absolute', // Position the tab bar at the bottom
+          left: 0,
+          right: 0,
+          bottom: 0, // Position it at the bottom of the screen
+height:90,
+
+
+        },
+        tabBarActiveTintColor: '#000',
+        tabBarInactiveTintColor: '#adadad',
+        tabBarLabel: () => null, // Hide titles for all screens
+      }}
+    >
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ alignItems: 'center' }}>
+              {focused ? (<Home color={"#232222"}/>):(<Home color={"#AAA4A4"}/>)}
+              {focused && <CircleIcon left={6}/>} 
+            </View>
+          ),
+          headerShown: false,
+        }}
+      />
+    
+      <Tab.Screen
+        name="Add"
+        component={AddScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            // <MaterialIcons name="add" size={36} color={color} />
+            <Add/>
+          ),
+          headerShown: false, // Hide the header (top bar) for this screen
+        }}
+      />
+
+      <Tab.Screen
+        name="OrderScreen"
+        component={OrderScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            // <Ionicons name="heart" size={28} color={color} />
+            <View style={{ alignItems: 'center' }}>
+              {focused ? (<Fav color={"#232222"}/>):(<Fav color={"#AAA4A4"}/>)}
+             {focused && <CircleIcon left={6}/>} 
+         </View>
+          
+          ),
+          headerShown: false, // Hide the header (top bar) for this screen
+        }}
+      />
+
+
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <View style={{ alignItems: 'center' }}>
+            {focused ? (<Profile colors={"#232222"}/>):(<Profile colors={"#AAA4A4"}/>)}
+          {focused && <CircleIcon left={9}/>} 
+        </View>  
+
+
+          ),
+          headerShown: false,
+        }}
+      />
+    </Tab.Navigator>
+  )
+}
+
+
+const App = () => {
+  
+  return (
+    <NavigationContainer>
+      <AuthStack />
+    </NavigationContainer>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  text: {
+    fontSize: 20,
+    fontFamily: 'Poppins-Bold',
+  },
+});
+
+export default App;
