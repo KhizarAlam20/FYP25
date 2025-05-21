@@ -1,0 +1,895 @@
+ENUMS TO BE USED:
+  item_availability_status: ['available', 'out_of_stock', 'discontinued'],
+  payment_method_type: ['cash_on_delivery', 'stripe'],
+  payment_status_type: ['pending', 'completed', 'failed', 'refunded'],
+  user_role: ['customer', 'seller']
+
+CREATE TABLE IF NOT EXISTS public.categories (
+    category_id BIGINT NOT NULL DEFAULT nextval('categories_category_id_seq'::regclass),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    parent_category_id BIGINT,
+    CONSTRAINT categories_pkey PRIMARY KEY (category_id),
+    CONSTRAINT categories_name_key UNIQUE (name),
+    CONSTRAINT categories_parent_category_id_fkey FOREIGN KEY (parent_category_id)
+        REFERENCES public.categories (category_id)
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
+ALTER TABLE public.categories OWNER TO postgres;
+
+a-- Table: public.categories
+CREATE TABLE IF NOT EXISTS public.categories
+(
+    category_id BIGINT NOT NULL DEFAULT nextval('categories_category_id_seq'::regclass),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    parent_category_id BIGINT,
+    CONSTRAINT categories_pkey PRIMARY KEY (category_id),
+    CONSTRAINT categories_name_key UNIQUE (name),
+    CONSTRAINT categories_parent_category_id_fkey FOREIGN KEY (parent_category_id)
+        REFERENCES public.categories (category_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
+ALTER TABLE public.categories OWNER TO postgres;
+
+-- Table: public.deliveries
+CREATE TABLE IF NOT EXISTS public.deliveries
+(
+    delivery_id BIGINT NOT NULL DEFAULT nextval('deliveries_delivery_id_seq'::regclass),
+    order_id BIGINT NOT NULL,
+    rider_id BIGINT,
+    estimated_pickup_time TIMESTAMP WITH TIME ZONE,
+    actual_pickup_time TIMESTAMP WITH TIME ZONE,
+    estimated_delivery_time TIMESTAMP WITH TIME ZONE,
+    actual_delivery_time TIMESTAMP WITH TIME ZONE,
+    status_id INTEGER,
+    delivery_proof_image TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT deliveries_pkey PRIMARY KEY (delivery_id),
+    CONSTRAINT deliveries_order_id_key UNIQUE (order_id),
+    CONSTRAINT deliveries_order_id_fkey FOREIGN KEY (order_id)
+        REFERENCES public.orders (order_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT deliveries_rider_id_fkey FOREIGN KEY (rider_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL,
+    CONSTRAINT deliveries_status_id_fkey FOREIGN KEY (status_id)
+        REFERENCES public.delivery_statuses (status_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL
+);
+
+ALTER TABLE public.deliveries OWNER TO postgres;
+
+-- Table: public.delivery_reviews
+CREATE TABLE IF NOT EXISTS public.delivery_reviews
+(
+    delivery_review_id BIGINT NOT NULL DEFAULT nextval('delivery_reviews_delivery_review_id_seq'::regclass),
+    delivery_id BIGINT NOT NULL,
+    rating INTEGER NOT NULL,
+    comment TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT delivery_reviews_pkey PRIMARY KEY (delivery_review_id),
+    CONSTRAINT delivery_reviews_delivery_id_key UNIQUE (delivery_id),
+    CONSTRAINT delivery_reviews_delivery_id_fkey FOREIGN KEY (delivery_id)
+        REFERENCES public.deliveries (delivery_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT delivery_reviews_rating_check CHECK (rating >= 1 AND rating <= 5)
+);
+
+ALTER TABLE public.delivery_reviews OWNER TO postgres;
+
+-- Table: public.delivery_statuses
+CREATE TABLE IF NOT EXISTS public.delivery_statuses
+(
+    status_id INTEGER NOT NULL DEFAULT nextval('delivery_statuses_status_id_seq'::regclass),
+    status VARCHAR(50) NOT NULL,
+    CONSTRAINT delivery_statuses_pkey PRIMARY KEY (status_id),
+    CONSTRAINT delivery_statuses_status_key UNIQUE (status)
+);
+
+ALTER TABLE public.delivery_statuses OWNER TO postgres;
+
+-- Table: public.item_addons
+CREATE TABLE IF NOT EXISTS public.item_addons
+(
+    addon_id BIGINT NOT NULL DEFAULT nextval('item_addons_addon_id_seq'::regclass),
+    item_id BIGINT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    price NUMERIC(10,2) NOT NULL,
+    is_available BOOLEAN DEFAULT TRUE,
+    CONSTRAINT item_addons_pkey PRIMARY KEY (addon_id),
+    CONSTRAINT item_addons_item_id_fkey FOREIGN KEY (item_id)
+        REFERENCES public.items (item_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT item_addons_price_check CHECK (price >= 0)
+);
+
+ALTER TABLE public.item_addons OWNER TO postgres;
+
+-- Table: public.item_availability
+CREATE TABLE IF NOT EXISTS public.item_availability
+(
+    availability_id BIGINT NOT NULL DEFAULT nextval('item_availability_availability_id_seq'::regclass),
+    item_id BIGINT NOT NULL,
+    status item_availability_status NOT NULL DEFAULT 'available'::item_availability_status,
+    effective_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT item_availability_pkey PRIMARY KEY (availability_id),
+    CONSTRAINT item_availability_item_id_fkey FOREIGN KEY (item_id)
+        REFERENCES public.items (item_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.item_availability OWNER TO postgres;
+
+-- Table: public.item_media
+CREATE TABLE IF NOT EXISTS public.item_media
+(
+    media_id BIGINT NOT NULL DEFAULT nextval('item_media_media_id_seq'::regclass),
+    item_id BIGINT NOT NULL,
+    media_url TEXT NOT NULL,
+    media_type VARCHAR(5),
+    is_primary BOOLEAN DEFAULT FALSE,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT item_media_pkey PRIMARY KEY (media_id),
+    CONSTRAINT item_media_item_id_fkey FOREIGN KEY (item_id)
+        REFERENCES public.items (item_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT item_media_media_type_check CHECK (media_type::TEXT = ANY (ARRAY['image', 'video']))
+);
+
+ALTER TABLE public.item_media OWNER TO postgres;
+
+-- Table: public.item_reviews
+CREATE TABLE IF NOT EXISTS public.item_reviews
+(
+    review_id BIGINT NOT NULL DEFAULT nextval('item_reviews_review_id_seq'::regclass),
+    order_id BIGINT NOT NULL,
+    rating INTEGER NOT NULL,
+    comment TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT item_reviews_pkey PRIMARY KEY (review_id),
+    CONSTRAINT item_reviews_order_id_key UNIQUE (order_id),
+    CONSTRAINT item_reviews_order_id_fkey FOREIGN KEY (order_id)
+        REFERENCES public.orders (order_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT item_reviews_rating_check CHECK (rating >= 1 AND rating <= 5)
+);
+
+ALTER TABLE public.item_reviews OWNER TO postgres;
+
+-- Table: public.item_tags
+CREATE TABLE IF NOT EXISTS public.item_tags
+(
+    item_id BIGINT NOT NULL,
+    tag_id BIGINT NOT NULL,
+    CONSTRAINT item_tags_pkey PRIMARY KEY (item_id, tag_id),
+    CONSTRAINT item_tags_item_id_fkey FOREIGN KEY (item_id)
+        REFERENCES public.items (item_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT item_tags_tag_id_fkey FOREIGN KEY (tag_id)
+        REFERENCES public.tags (tag_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.item_tags OWNER TO postgres;
+
+-- Table: public.items
+CREATE TABLE IF NOT EXISTS public.items
+(
+    item_id BIGINT NOT NULL DEFAULT nextval('items_item_id_seq'::regclass),
+    user_id BIGINT NOT NULL,
+    category_id BIGINT,
+    name TEXT NOT NULL,
+    description TEXT,
+    base_price NUMERIC(10,2) NOT NULL,
+    preparation_time INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT items_pkey PRIMARY KEY (item_id),
+    CONSTRAINT items_category_id_fkey FOREIGN KEY (category_id)
+        REFERENCES public.categories (category_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL,
+    CONSTRAINT items_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT items_base_price_check CHECK (base_price > 0),
+    CONSTRAINT items_preparation_time_check CHECK (preparation_time > 0)
+);
+
+ALTER TABLE public.items OWNER TO postgres;
+
+-- Table: public.items_table
+CREATE TABLE IF NOT EXISTS public.items_table
+(
+    item_id BIGINT NOT NULL DEFAULT nextval('items_table_item_id_seq'::regclass),
+    user_id BIGINT NOT NULL,
+    item_name VARCHAR(255) NOT NULL,
+    price NUMERIC(10,2) NOT NULL,
+    tags TEXT[],
+    images TEXT[],
+    create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    description TEXT,
+    video_url TEXT,
+    CONSTRAINT items_table_pkey PRIMARY KEY (item_id),
+    CONSTRAINT fk_user FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
+ALTER TABLE public.items_table OWNER TO postgres;
+
+-- Table: public.messages
+CREATE TABLE IF NOT EXISTS public.messages
+(
+    message_id BIGINT NOT NULL DEFAULT nextval('messages_message_id_seq'::regclass),
+    sender_id BIGINT NOT NULL,
+    receiver_id BIGINT NOT NULL,
+    content TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT messages_pkey PRIMARY KEY (message_id),
+    CONSTRAINT messages_receiver_id_fkey FOREIGN KEY (receiver_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT messages_check CHECK (sender_id <> receiver_id)
+);
+
+ALTER TABLE public.messages OWNER TO postgres;
+
+-- Table: public.order_addons
+CREATE TABLE IF NOT EXISTS public.order_addons
+(
+    order_addon_id BIGINT NOT NULL DEFAULT nextval('order_addons_order_addon_id_seq'::regclass),
+    order_item_id BIGINT NOT NULL,
+    addon_id BIGINT NOT NULL,
+    quantity INTEGER NOT NULL,
+    unit_price NUMERIC(10,2) NOT NULL,
+    subtotal NUMERIC(10,2) GENERATED ALWAYS AS (((quantity)::numeric * unit_price)) STORED,
+    CONSTRAINT order_addons_pkey PRIMARY KEY (order_addon_id),
+    CONSTRAINT order_addons_order_item_id_addon_id_key UNIQUE (order_item_id, addon_id),
+    CONSTRAINT order_addons_addon_id_fkey FOREIGN KEY (addon_id)
+        REFERENCES public.item_addons (addon_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT order_addons_order_item_id_fkey FOREIGN KEY (order_item_id)
+        REFERENCES public.order_items (order_item_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT order_addons_quantity_check CHECK (quantity > 0),
+    CONSTRAINT order_addons_unit_price_check CHECK (unit_price >= 0::numeric)
+);
+
+ALTER TABLE public.order_addons OWNER TO postgres;
+
+-- Table: public.order_items
+CREATE TABLE IF NOT EXISTS public.order_items
+(
+    order_item_id BIGINT NOT NULL DEFAULT nextval('order_items_order_item_id_seq'::regclass),
+    order_id BIGINT NOT NULL,
+    item_id BIGINT NOT NULL,
+    quantity INTEGER NOT NULL,
+    unit_price NUMERIC(10,2) NOT NULL,
+    subtotal NUMERIC(10,2) GENERATED ALWAYS AS (((quantity)::numeric * unit_price)) STORED,
+    CONSTRAINT order_items_pkey PRIMARY KEY (order_item_id),
+    CONSTRAINT order_items_item_id_fkey FOREIGN KEY (item_id)
+        REFERENCES public.items (item_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT order_items_order_id_fkey FOREIGN KEY (order_id)
+        REFERENCES public.orders (order_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT order_items_quantity_check CHECK (quantity > 0),
+    CONSTRAINT order_items_unit_price_check CHECK (unit_price >= 0::numeric)
+);
+
+ALTER TABLE public.order_items OWNER TO postgres;
+
+-- Table: public.order_statuses
+CREATE TABLE IF NOT EXISTS public.order_statuses
+(
+    status_id INTEGER NOT NULL DEFAULT nextval('order_statuses_status_id_seq'::regclass),
+    status VARCHAR(50) NOT NULL,
+    order_item_id BIGINT NOT NULL,
+    description TEXT,
+    CONSTRAINT order_statuses_pkey PRIMARY KEY (status_id),
+    CONSTRAINT order_statuses_status_key UNIQUE (status),
+    CONSTRAINT order_statuses_order_item_id_fkey FOREIGN KEY (order_item_id)
+        REFERENCES public.order_items (order_item_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.order_statuses OWNER TO postgres;
+
+-- Table: public.orders
+CREATE TABLE IF NOT EXISTS public.orders
+(
+    order_id BIGINT NOT NULL DEFAULT nextval('orders_order_id_seq'::regclass),
+    buyer_id BIGINT NOT NULL,
+    seller_id BIGINT NOT NULL,
+    reel_id BIGINT,
+    total_amount NUMERIC(10,2) NOT NULL,
+    delivery_fee NUMERIC(10,2) DEFAULT 0,
+    shipping_address TEXT NOT NULL,
+    payment_status payment_status_type NOT NULL,
+    payment_method payment_method_type NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT orders_pkey PRIMARY KEY (order_id),
+    CONSTRAINT orders_buyer_id_fkey FOREIGN KEY (buyer_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT orders_reel_id_fkey FOREIGN KEY (reel_id)
+        REFERENCES public.reels (reel_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL,
+    CONSTRAINT orders_seller_id_fkey FOREIGN KEY (seller_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT orders_total_amount_check CHECK (total_amount > 0::numeric),
+    CONSTRAINT orders_delivery_fee_check CHECK (delivery_fee >= 0::numeric)
+);
+
+ALTER TABLE public.orders OWNER TO postgres;
+
+-- Table: public.reels
+CREATE TABLE IF NOT EXISTS public.reels
+(
+    reel_id INTEGER NOT NULL DEFAULT nextval('reels_reel_id_seq'::regclass),
+    reel_url TEXT NOT NULL,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    item_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    upvotes INTEGER DEFAULT 0,
+    saves INTEGER DEFAULT 0,
+    shares INTEGER DEFAULT 0,
+    CONSTRAINT reels_pkey PRIMARY KEY (reel_id),
+    CONSTRAINT reels_item_id_fkey FOREIGN KEY (item_id)
+        REFERENCES public.items (item_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT reels_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.reels OWNER TO postgres;
+
+-- Table: public.stories
+CREATE TABLE IF NOT EXISTS public.stories
+(
+    story_id BIGINT NOT NULL DEFAULT nextval('stories_story_id_seq'::regclass),
+    user_id BIGINT NOT NULL,
+    media_url TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    CONSTRAINT stories_pkey PRIMARY KEY (story_id),
+    CONSTRAINT stories_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.stories OWNER TO postgres;
+
+-- Table: public.stripe_payments
+CREATE TABLE IF NOT EXISTS public.stripe_payments
+(
+    payment_id BIGINT NOT NULL DEFAULT nextval('stripe_payments_payment_id_seq'::regclass),
+    order_id BIGINT NOT NULL,
+    payment_intent_id VARCHAR(255) NOT NULL,
+    customer_id VARCHAR(255),
+    amount NUMERIC(10,2) NOT NULL,
+    currency VARCHAR(3) DEFAULT 'USD',
+    status payment_status_type NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT stripe_payments_pkey PRIMARY KEY (payment_id),
+    CONSTRAINT stripe_payments_order_id_key UNIQUE (order_id),
+    CONSTRAINT stripe_payments_payment_intent_id_key UNIQUE (payment_intent_id),
+    CONSTRAINT stripe_payments_order_id_fkey FOREIGN KEY (order_id)
+        REFERENCES public.orders (order_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.stripe_payments OWNER TO postgres;
+
+-- Table: public.tags
+CREATE TABLE IF NOT EXISTS public.tags
+(
+    tag_id BIGINT NOT NULL DEFAULT nextval('tags_tag_id_seq'::regclass),
+    tag_name VARCHAR(50) NOT NULL,
+    CONSTRAINT tags_pkey PRIMARY KEY (tag_id),
+    CONSTRAINT tags_tag_name_key UNIQUE (tag_name)
+);
+
+ALTER TABLE public.tags OWNER TO postgres;
+
+-- Table: public.user_follows
+CREATE TABLE IF NOT EXISTS public.user_follows
+(
+    follower_id BIGINT NOT NULL,
+    following_id BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT user_follows_pkey PRIMARY KEY (follower_id, following_id),
+    CONSTRAINT user_follows_follower_id_fkey FOREIGN KEY (follower_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT user_follows_following_id_fkey FOREIGN KEY (following_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT no_self_follow CHECK (follower_id <> following_id)
+);
+
+ALTER TABLE public.user_follows OWNER TO postgres;
+
+-- Table: public.users
+CREATE TABLE IF NOT EXISTS public.users
+(
+    user_id BIGINT NOT NULL DEFAULT nextval('users_user_id_seq'::regclass),
+    username VARCHAR(50) NOT NULL,
+    email VARCHAR(100),
+    phone VARCHAR(20),
+    password VARCHAR(255),
+    role VARCHAR(50),
+    longitude DOUBLE PRECISION,
+    latitude DOUBLE PRECISION,
+    created_date TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    image_url TEXT,
+    location_name TEXT,
+    rating NUMERIC(3,2) DEFAULT 4.9,
+    CONSTRAINT users_pkey PRIMARY KEY (user_id)
+);
+
+ALTER TABLE public.users OWNER TO postgres;
+
+-- Create sequences first
+CREATE SEQUENCE IF NOT EXISTS public.reel_likes_like_id_seq;
+CREATE SEQUENCE IF NOT EXISTS public.reel_saves_save_id_seq;
+CREATE SEQUENCE IF NOT EXISTS public.reel_comments_comment_id_seq;
+
+-- Table: public.reel_likes
+CREATE TABLE IF NOT EXISTS public.reel_likes
+(
+    like_id BIGINT NOT NULL DEFAULT nextval('reel_likes_like_id_seq'::regclass),
+    reel_id INTEGER NOT NULL,
+    user_id BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT reel_likes_pkey PRIMARY KEY (like_id),
+    CONSTRAINT reel_likes_reel_id_user_id_key UNIQUE (reel_id, user_id),
+    CONSTRAINT reel_likes_reel_id_fkey FOREIGN KEY (reel_id)
+        REFERENCES public.reels (reel_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT reel_likes_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.reel_likes OWNER TO postgres;
+
+-- Table: public.reel_saves
+CREATE TABLE IF NOT EXISTS public.reel_saves
+(
+    save_id BIGINT NOT NULL DEFAULT nextval('reel_saves_save_id_seq'::regclass),
+    reel_id INTEGER NOT NULL,
+    user_id BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT reel_saves_pkey PRIMARY KEY (save_id),
+    CONSTRAINT reel_saves_reel_id_user_id_key UNIQUE (reel_id, user_id),
+    CONSTRAINT reel_saves_reel_id_fkey FOREIGN KEY (reel_id)
+        REFERENCES public.reels (reel_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT reel_saves_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.reel_saves OWNER TO postgres;
+
+-- Table: public.reel_comments
+CREATE TABLE IF NOT EXISTS public.reel_comments
+(
+    comment_id BIGINT NOT NULL DEFAULT nextval('reel_comments_comment_id_seq'::regclass),
+    reel_id INTEGER NOT NULL,
+    user_id BIGINT NOT NULL,
+    comment TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT reel_comments_pkey PRIMARY KEY (comment_id),
+    CONSTRAINT reel_comments_reel_id_fkey FOREIGN KEY (reel_id)
+        REFERENCES public.reels (reel_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT reel_comments_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.reel_comments OWNER TO postgres;
+
+
+
+
+
+sample insertions in database
+
+-- Insert sample users
+INSERT INTO public.users (username, email, phone, password, role, longitude, latitude, created_date, image_url, location_name, rating)
+VALUES 
+('chef_maria', 'maria@example.com', '+1234567890', 'password123', 'seller', -73.935242, 40.730610, CURRENT_TIMESTAMP, 'https://randomuser.me/api/portraits/women/65.jpg', 'Brooklyn, NY', 4.8),
+('chef_james', 'james@example.com', '+1987654321', 'password123', 'seller', -74.006015, 40.712776, CURRENT_TIMESTAMP, 'https://randomuser.me/api/portraits/men/32.jpg', 'Manhattan, NY', 4.9),
+('foodie_sarah', 'sarah@example.com', '+1122334455', 'password123', 'buyer', -73.950942, 40.650002, CURRENT_TIMESTAMP, 'https://randomuser.me/api/portraits/women/22.jpg', 'Queens, NY', NULL),
+('john_doe', 'john@example.com', '+1555666777', 'password123', 'buyer', -73.896614, 40.856705, CURRENT_TIMESTAMP, 'https://randomuser.me/api/portraits/men/55.jpg', 'Bronx, NY', NULL);
+
+-- Insert top-level parent categories first
+INSERT INTO public.categories (name, description, parent_category_id)
+VALUES 
+('Italian', 'Traditional and modern Italian cuisine', NULL),
+('Asian', 'Food from across Asia', NULL),
+('Desserts', 'Sweet treats and desserts', NULL);
+
+-- Then insert child categories that reference the above parents
+INSERT INTO public.categories (name, description, parent_category_id)
+VALUES
+('Pasta', 'Various pasta dishes', (SELECT category_id FROM public.categories WHERE name = 'Italian')),
+('Pizza', 'Traditional and fusion pizzas', (SELECT category_id FROM public.categories WHERE name = 'Italian')),
+('Sushi', 'Japanese sushi and sashimi', (SELECT category_id FROM public.categories WHERE name = 'Asian')),
+('Thai', 'Authentic Thai cuisine', (SELECT category_id FROM public.categories WHERE name = 'Asian')),
+('Cakes', 'Homemade cakes and pastries', (SELECT category_id FROM public.categories WHERE name = 'Desserts'));
+
+
+-- Insert sample tags
+INSERT INTO public.tags (tag_name)
+VALUES 
+('Spicy'),
+('Vegetarian'),
+('Gluten-Free'),
+('Vegan'),
+('Organic'),
+('Homemade'),
+('Quick meal'),
+('Gourmet');
+
+-- Insert sample items for chef_maria
+INSERT INTO public.items (user_id, category_id, name, description, base_price, preparation_time)
+VALUES 
+((SELECT user_id FROM public.users WHERE username = 'chef_maria'), 
+ (SELECT category_id FROM public.categories WHERE name = 'Pasta'), 
+ 'Homemade Lasagna', 'Traditional Italian lasagna with beef ragu, béchamel sauce, and freshly made pasta layers', 
+ 18.99, 45),
+ 
+((SELECT user_id FROM public.users WHERE username = 'chef_maria'), 
+ (SELECT category_id FROM public.categories WHERE name = 'Cakes'), 
+ 'Tiramisu', 'Authentic Italian tiramisu with mascarpone cream, espresso-soaked ladyfingers, and cocoa dusting', 
+ 9.99, 25),
+ 
+((SELECT user_id FROM public.users WHERE username = 'chef_maria'), 
+ (SELECT category_id FROM public.categories WHERE name = 'Pizza'), 
+ 'Margherita Pizza', 'Classic Neapolitan pizza with San Marzano tomatoes, fresh mozzarella, basil, and extra virgin olive oil', 
+ 14.99, 30);
+
+-- Insert sample items for chef_james
+INSERT INTO public.items (user_id, category_id, name, description, base_price, preparation_time)
+VALUES 
+((SELECT user_id FROM public.users WHERE username = 'chef_james'), 
+ (SELECT category_id FROM public.categories WHERE name = 'Sushi'), 
+ 'Rainbow Roll', 'California roll topped with assorted sashimi, avocado and special sauce', 
+ 16.99, 30),
+ 
+((SELECT user_id FROM public.users WHERE username = 'chef_james'), 
+ (SELECT category_id FROM public.categories WHERE name = 'Thai'), 
+ 'Pad Thai', 'Traditional Thai stir-fried rice noodles with egg, tofu, bean sprouts, peanuts, and lime', 
+ 12.99, 20),
+ 
+((SELECT user_id FROM public.users WHERE username = 'chef_james'), 
+ (SELECT category_id FROM public.categories WHERE name = 'Desserts'), 
+ 'Mango Sticky Rice', 'Sweet coconut sticky rice served with fresh mango slices', 
+ 8.99, 15);
+
+-- Connect items with tags
+INSERT INTO public.item_tags (item_id, tag_id)
+VALUES
+((SELECT item_id FROM public.items WHERE name = 'Homemade Lasagna'), (SELECT tag_id FROM public.tags WHERE tag_name = 'Homemade')),
+((SELECT item_id FROM public.items WHERE name = 'Homemade Lasagna'), (SELECT tag_id FROM public.tags WHERE tag_name = 'Gourmet')),
+((SELECT item_id FROM public.items WHERE name = 'Tiramisu'), (SELECT tag_id FROM public.tags WHERE tag_name = 'Homemade')),
+((SELECT item_id FROM public.items WHERE name = 'Margherita Pizza'), (SELECT tag_id FROM public.tags WHERE tag_name = 'Vegetarian')),
+((SELECT item_id FROM public.items WHERE name = 'Rainbow Roll'), (SELECT tag_id FROM public.tags WHERE tag_name = 'Gourmet')),
+((SELECT item_id FROM public.items WHERE name = 'Pad Thai'), (SELECT tag_id FROM public.tags WHERE tag_name = 'Spicy')),
+((SELECT item_id FROM public.items WHERE name = 'Mango Sticky Rice'), (SELECT tag_id FROM public.tags WHERE tag_name = 'Vegetarian')),
+((SELECT item_id FROM public.items WHERE name = 'Mango Sticky Rice'), (SELECT tag_id FROM public.tags WHERE tag_name = 'Vegan'));
+
+-- Add media for items
+INSERT INTO public.item_media (item_id, media_url, media_type, is_primary, sort_order)
+VALUES
+((SELECT item_id FROM public.items WHERE name = 'Homemade Lasagna'), 
+ 'https://images.unsplash.com/photo-1619895092538-128341789043', 'image', TRUE, 1),
+ 
+((SELECT item_id FROM public.items WHERE name = 'Tiramisu'), 
+ 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9', 'image', TRUE, 1),
+ 
+((SELECT item_id FROM public.items WHERE name = 'Margherita Pizza'), 
+ 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002', 'image', TRUE, 1),
+ 
+((SELECT item_id FROM public.items WHERE name = 'Rainbow Roll'), 
+ 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c', 'image', TRUE, 1),
+ 
+((SELECT item_id FROM public.items WHERE name = 'Pad Thai'), 
+ 'https://images.unsplash.com/photo-1559314809-0d155014e29e', 'image', TRUE, 1),
+ 
+((SELECT item_id FROM public.items WHERE name = 'Mango Sticky Rice'), 
+ 'https://images.unsplash.com/photo-1588543385467-173d5f768075', 'image', TRUE, 1);
+
+-- Add item addons
+INSERT INTO public.item_addons (item_id, name, price, is_available)
+VALUES
+((SELECT item_id FROM public.items WHERE name = 'Homemade Lasagna'), 'Extra Cheese', 2.50, TRUE),
+((SELECT item_id FROM public.items WHERE name = 'Homemade Lasagna'), 'Garlic Bread', 3.99, TRUE),
+((SELECT item_id FROM public.items WHERE name = 'Margherita Pizza'), 'Mushrooms', 1.99, TRUE),
+((SELECT item_id FROM public.items WHERE name = 'Margherita Pizza'), 'Extra Mozzarella', 2.50, TRUE),
+((SELECT item_id FROM public.items WHERE name = 'Rainbow Roll'), 'Spicy Mayo', 1.00, TRUE),
+((SELECT item_id FROM public.items WHERE name = 'Rainbow Roll'), 'Extra Wasabi', 0.75, TRUE),
+((SELECT item_id FROM public.items WHERE name = 'Pad Thai'), 'Extra Peanuts', 1.25, TRUE),
+((SELECT item_id FROM public.items WHERE name = 'Pad Thai'), 'Extra Spicy', 0.50, TRUE);
+
+-- Insert item availability
+INSERT INTO public.item_availability (item_id, status, effective_date)
+VALUES
+((SELECT item_id FROM public.items WHERE name = 'Homemade Lasagna'), 'available', CURRENT_TIMESTAMP),
+((SELECT item_id FROM public.items WHERE name = 'Tiramisu'), 'available', CURRENT_TIMESTAMP),
+((SELECT item_id FROM public.items WHERE name = 'Margherita Pizza'), 'available', CURRENT_TIMESTAMP),
+((SELECT item_id FROM public.items WHERE name = 'Rainbow Roll'), 'available', CURRENT_TIMESTAMP),
+((SELECT item_id FROM public.items WHERE name = 'Pad Thai'), 'available', CURRENT_TIMESTAMP),
+((SELECT item_id FROM public.items WHERE name = 'Mango Sticky Rice'), 'available', CURRENT_TIMESTAMP);
+
+-- Insert sample reels
+INSERT INTO public.reels (reel_url, item_id, user_id, upvotes, saves, shares)
+VALUES
+('https://res.cloudinary.com/dityjpdl6/video/upload/f_auto:video,q_auto/qs4tgfsdknpvoyz7d7au', 
+ (SELECT item_id FROM public.items WHERE name = 'Homemade Lasagna'), 
+ (SELECT user_id FROM public.users WHERE username = 'chef_maria'),
+ 56, 23, 12),
+ 
+('https://res.cloudinary.com/dityjpdl6/video/upload/f_auto:video,q_auto/qs4tgfsdknpvoyz7d7au', 
+ (SELECT item_id FROM public.items WHERE name = 'Tiramisu'), 
+ (SELECT user_id FROM public.users WHERE username = 'chef_maria'),
+ 43, 18, 7),
+ 
+('https://res.cloudinary.com/dityjpdl6/video/upload/f_auto:video,q_auto/se2ymtenlpf0y7kveodp', 
+ (SELECT item_id FROM public.items WHERE name = 'Rainbow Roll'), 
+ (SELECT user_id FROM public.users WHERE username = 'chef_james'),
+ 89, 35, 22),
+ 
+('https://res.cloudinary.com/dityjpdl6/video/upload/f_auto:video,q_auto/se2ymtenlpf0y7kveodp', 
+ (SELECT item_id FROM public.items WHERE name = 'Pad Thai'), 
+ (SELECT user_id FROM public.users WHERE username = 'chef_james'),
+ 72, 29, 15);
+
+-- Insert reel interactions (likes, saves, comments)
+INSERT INTO public.reel_likes (reel_id, user_id)
+VALUES
+((SELECT reel_id FROM public.reels WHERE item_id = (SELECT item_id FROM public.items WHERE name = 'Homemade Lasagna')), 
+ (SELECT user_id FROM public.users WHERE username = 'foodie_sarah')),
+ 
+((SELECT reel_id FROM public.reels WHERE item_id = (SELECT item_id FROM public.items WHERE name = 'Homemade Lasagna')), 
+ (SELECT user_id FROM public.users WHERE username = 'john_doe')),
+ 
+((SELECT reel_id FROM public.reels WHERE item_id = (SELECT item_id FROM public.items WHERE name = 'Rainbow Roll')), 
+ (SELECT user_id FROM public.users WHERE username = 'foodie_sarah')),
+ 
+((SELECT reel_id FROM public.reels WHERE item_id = (SELECT item_id FROM public.items WHERE name = 'Pad Thai')), 
+ (SELECT user_id FROM public.users WHERE username = 'john_doe'));
+
+INSERT INTO public.reel_saves (reel_id, user_id)
+VALUES
+((SELECT reel_id FROM public.reels WHERE item_id = (SELECT item_id FROM public.items WHERE name = 'Homemade Lasagna')), 
+ (SELECT user_id FROM public.users WHERE username = 'foodie_sarah')),
+ 
+((SELECT reel_id FROM public.reels WHERE item_id = (SELECT item_id FROM public.items WHERE name = 'Rainbow Roll')), 
+ (SELECT user_id FROM public.users WHERE username = 'john_doe'));
+
+INSERT INTO public.reel_comments (reel_id, user_id, comment)
+VALUES
+((SELECT reel_id FROM public.reels WHERE item_id = (SELECT item_id FROM public.items WHERE name = 'Homemade Lasagna')), 
+ (SELECT user_id FROM public.users WHERE username = 'foodie_sarah'),
+ 'This looks absolutely delicious! Can''t wait to order it!'),
+ 
+((SELECT reel_id FROM public.reels WHERE item_id = (SELECT item_id FROM public.items WHERE name = 'Rainbow Roll')), 
+ (SELECT user_id FROM public.users WHERE username = 'john_doe'),
+ 'The presentation is amazing! Is delivery available to Bronx?'),
+ 
+((SELECT reel_id FROM public.reels WHERE item_id = (SELECT item_id FROM public.items WHERE name = 'Pad Thai')), 
+ (SELECT user_id FROM public.users WHERE username = 'foodie_sarah'),
+ 'I love the authentic spice level you maintain!');
+
+-- User follows
+INSERT INTO public.user_follows (follower_id, following_id)
+VALUES
+((SELECT user_id FROM public.users WHERE username = 'foodie_sarah'), 
+ (SELECT user_id FROM public.users WHERE username = 'chef_maria')),
+ 
+((SELECT user_id FROM public.users WHERE username = 'foodie_sarah'), 
+ (SELECT user_id FROM public.users WHERE username = 'chef_james')),
+ 
+((SELECT user_id FROM public.users WHERE username = 'john_doe'), 
+ (SELECT user_id FROM public.users WHERE username = 'chef_maria'));
+
+-- Insert delivery_statuses
+INSERT INTO public.delivery_statuses (status)
+VALUES
+('Pending'),
+('Accepted'),
+('Picked Up'),
+('In Transit'),
+('Delivered'),
+('Cancelled');
+
+
+SELECT enum_range(NULL::payment_status_type);
+-- Insert sample orders
+INSERT INTO public.orders (buyer_id, seller_id, reel_id, total_amount, delivery_fee, shipping_address, payment_status, payment_method)
+VALUES
+((SELECT user_id FROM public.users WHERE username = 'foodie_sarah'), 
+ (SELECT user_id FROM public.users WHERE username = 'chef_maria'), 
+ (SELECT reel_id FROM public.reels WHERE item_id = (SELECT item_id FROM public.items WHERE name = 'Homemade Lasagna')),
+ 25.48, 5.99, '123 Main St, Queens, NY 11101', 'paid', 'credit_card'),
+ 
+((SELECT user_id FROM public.users WHERE username = 'john_doe'), 
+ (SELECT user_id FROM public.users WHERE username = 'chef_james'), 
+ (SELECT reel_id FROM public.reels WHERE item_id = (SELECT item_id FROM public.items WHERE name = 'Rainbow Roll')),
+ 20.98, 3.99, '456 Elm Ave, Bronx, NY 10462', 'paid', 'apple_pay');
+
+-- Insert order items
+INSERT INTO public.order_items (order_id, item_id, quantity, unit_price)
+VALUES
+((SELECT order_id FROM public.orders WHERE buyer_id = (SELECT user_id FROM public.users WHERE username = 'foodie_sarah')), 
+ (SELECT item_id FROM public.items WHERE name = 'Homemade Lasagna'), 
+ 1, 18.99),
+ 
+((SELECT order_id FROM public.orders WHERE buyer_id = (SELECT user_id FROM public.users WHERE username = 'john_doe')), 
+ (SELECT item_id FROM public.items WHERE name = 'Rainbow Roll'), 
+ 1, 16.99);
+
+-- Insert order addons
+INSERT INTO public.order_addons (order_item_id, addon_id, quantity, unit_price)
+VALUES
+((SELECT order_item_id FROM public.order_items WHERE order_id = (SELECT order_id FROM public.orders WHERE buyer_id = (SELECT user_id FROM public.users WHERE username = 'foodie_sarah'))), 
+ (SELECT addon_id FROM public.item_addons WHERE item_id = (SELECT item_id FROM public.items WHERE name = 'Homemade Lasagna') AND name = 'Extra Cheese'), 
+ 1, 2.50),
+
+((SELECT order_item_id FROM public.order_items WHERE order_id = (SELECT order_id FROM public.orders WHERE buyer_id = (SELECT user_id FROM public.users WHERE username = 'john_doe'))), 
+ (SELECT addon_id FROM public.item_addons WHERE item_id = (SELECT item_id FROM public.items WHERE name = 'Rainbow Roll') AND name = 'Spicy Mayo'), 
+ 1, 1.00);
+
+-- Insert deliveries
+INSERT INTO public.deliveries (order_id, rider_id, estimated_pickup_time, actual_pickup_time, 
+                             estimated_delivery_time, actual_delivery_time, status_id, delivery_proof_image)
+VALUES
+((SELECT order_id FROM public.orders WHERE buyer_id = (SELECT user_id FROM public.users WHERE username = 'foodie_sarah')), 
+ NULL, 
+ CURRENT_TIMESTAMP + INTERVAL '30 minutes', 
+ NULL,
+ CURRENT_TIMESTAMP + INTERVAL '1 hour', 
+ NULL,
+ (SELECT status_id FROM public.delivery_statuses WHERE status = 'Pending'),
+ NULL),
+ 
+((SELECT order_id FROM public.orders WHERE buyer_id = (SELECT user_id FROM public.users WHERE username = 'john_doe')), 
+ (SELECT user_id FROM public.users WHERE username = 'chef_james'),  -- In this example, the chef is doing their own delivery
+ CURRENT_TIMESTAMP + INTERVAL '15 minutes', 
+ CURRENT_TIMESTAMP + INTERVAL '20 minutes',
+ CURRENT_TIMESTAMP + INTERVAL '45 minutes', 
+ CURRENT_TIMESTAMP + INTERVAL '50 minutes',
+ (SELECT status_id FROM public.delivery_statuses WHERE status = 'Delivered'),
+ 'https://images.unsplash.com/photo-1589758438368-0ad531db3366');
+
+-- Insert item reviews
+INSERT INTO public.item_reviews (order_id, rating, comment)
+VALUES
+((SELECT order_id FROM public.orders WHERE buyer_id = (SELECT user_id FROM public.users WHERE username = 'john_doe')),
+ 5,
+ 'The Rainbow Roll was incredible! So fresh and flavorful. Will definitely order again!');
+
+-- Insert delivery reviews
+INSERT INTO public.delivery_reviews (delivery_id, rating, comment)
+VALUES
+((SELECT delivery_id FROM public.deliveries WHERE order_id = (SELECT order_id FROM public.orders WHERE buyer_id = (SELECT user_id FROM public.users WHERE username = 'john_doe'))),
+ 5,
+ 'Fast delivery and the food was still hot!');
+
+-- Insert stripe payments
+INSERT INTO public.stripe_payments (order_id, payment_intent_id, customer_id, amount, currency, status)
+VALUES
+((SELECT order_id FROM public.orders WHERE buyer_id = (SELECT user_id FROM public.users WHERE username = 'foodie_sarah')),
+ 'pi_3OvQxJKL935kNkp01lxFke3Z',
+ 'cus_P9XNwJpkLMZ7vQ',
+ 25.48,
+ 'USD',
+ 'paid'),
+ 
+((SELECT order_id FROM public.orders WHERE buyer_id = (SELECT user_id FROM public.users WHERE username = 'john_doe')),
+ 'pi_3OvQyMKL935kNkp01pxNke3R',
+ 'cus_Q8XMvKpkLMZ7rS',
+ 20.98,
+ 'USD',
+ 'paid');
+
+-- Insert stories
+INSERT INTO public.stories (user_id, media_url, created_at, expires_at)
+VALUES
+((SELECT user_id FROM public.users WHERE username = 'chef_maria'),
+ 'https://images.unsplash.com/photo-1551866442-64e75e911c23',
+ CURRENT_TIMESTAMP,
+ CURRENT_TIMESTAMP + INTERVAL '24 hours'),
+ 
+((SELECT user_id FROM public.users WHERE username = 'chef_james'),
+ 'https://images.unsplash.com/photo-1562565652-a0d8f0c59eb4',
+ CURRENT_TIMESTAMP,
+ CURRENT_TIMESTAMP + INTERVAL '24 hours');
+
+-- Insert messages
+INSERT INTO public.messages (sender_id, receiver_id, content, is_read)
+VALUES
+((SELECT user_id FROM public.users WHERE username = 'foodie_sarah'),
+ (SELECT user_id FROM public.users WHERE username = 'chef_maria'),
+ 'Hi! I just ordered your lasagna. Could you please make it extra cheesy?',
+ TRUE),
+ 
+((SELECT user_id FROM public.users WHERE username = 'chef_maria'),
+ (SELECT user_id FROM public.users WHERE username = 'foodie_sarah'),
+ 'Hello! Thanks for your order. I added extra cheese as requested. Enjoy!',
+ FALSE),
+ 
+((SELECT user_id FROM public.users WHERE username = 'john_doe'),
+ (SELECT user_id FROM public.users WHERE username = 'chef_james'),
+ 'Your Rainbow Roll was amazing! Do you have any vegetarian options?',
+ TRUE),
+ 
+((SELECT user_id FROM public.users WHERE username = 'chef_james'),
+ (SELECT user_id FROM public.users WHERE username = 'john_doe'),
+ 'Thank you! Yes, I have several vegetarian rolls available. Check out my menu!',
+ FALSE);
+
+-- Update the counters in reels table to match the actual likes, saves, etc.
+UPDATE public.reels
+SET upvotes = (SELECT COUNT(*) FROM public.reel_likes WHERE reel_likes.reel_id = reels.reel_id)
+WHERE TRUE;
+
+UPDATE public.reels
+SET saves = (SELECT COUNT(*) FROM public.reel_saves WHERE reel_saves.reel_id = reels.reel_id)
+WHERE TRUE;

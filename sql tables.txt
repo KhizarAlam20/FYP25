@@ -1,0 +1,543 @@
+
+
+CREATE TABLE IF NOT EXISTS public.categories (
+    category_id BIGINT NOT NULL DEFAULT nextval('categories_category_id_seq'::regclass),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    parent_category_id BIGINT,
+    CONSTRAINT categories_pkey PRIMARY KEY (category_id),
+    CONSTRAINT categories_name_key UNIQUE (name),
+    CONSTRAINT categories_parent_category_id_fkey FOREIGN KEY (parent_category_id)
+        REFERENCES public.categories (category_id)
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
+ALTER TABLE public.categories OWNER TO postgres;
+
+a-- Table: public.categories
+CREATE TABLE IF NOT EXISTS public.categories
+(
+    category_id BIGINT NOT NULL DEFAULT nextval('categories_category_id_seq'::regclass),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    parent_category_id BIGINT,
+    CONSTRAINT categories_pkey PRIMARY KEY (category_id),
+    CONSTRAINT categories_name_key UNIQUE (name),
+    CONSTRAINT categories_parent_category_id_fkey FOREIGN KEY (parent_category_id)
+        REFERENCES public.categories (category_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
+ALTER TABLE public.categories OWNER TO postgres;
+
+-- Table: public.deliveries
+CREATE TABLE IF NOT EXISTS public.deliveries
+(
+    delivery_id BIGINT NOT NULL DEFAULT nextval('deliveries_delivery_id_seq'::regclass),
+    order_id BIGINT NOT NULL,
+    rider_id BIGINT,
+    estimated_pickup_time TIMESTAMP WITH TIME ZONE,
+    actual_pickup_time TIMESTAMP WITH TIME ZONE,
+    estimated_delivery_time TIMESTAMP WITH TIME ZONE,
+    actual_delivery_time TIMESTAMP WITH TIME ZONE,
+    status_id INTEGER,
+    delivery_proof_image TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT deliveries_pkey PRIMARY KEY (delivery_id),
+    CONSTRAINT deliveries_order_id_key UNIQUE (order_id),
+    CONSTRAINT deliveries_order_id_fkey FOREIGN KEY (order_id)
+        REFERENCES public.orders (order_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT deliveries_rider_id_fkey FOREIGN KEY (rider_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL,
+    CONSTRAINT deliveries_status_id_fkey FOREIGN KEY (status_id)
+        REFERENCES public.delivery_statuses (status_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL
+);
+
+ALTER TABLE public.deliveries OWNER TO postgres;
+
+-- Table: public.delivery_reviews
+CREATE TABLE IF NOT EXISTS public.delivery_reviews
+(
+    delivery_review_id BIGINT NOT NULL DEFAULT nextval('delivery_reviews_delivery_review_id_seq'::regclass),
+    delivery_id BIGINT NOT NULL,
+    rating INTEGER NOT NULL,
+    comment TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT delivery_reviews_pkey PRIMARY KEY (delivery_review_id),
+    CONSTRAINT delivery_reviews_delivery_id_key UNIQUE (delivery_id),
+    CONSTRAINT delivery_reviews_delivery_id_fkey FOREIGN KEY (delivery_id)
+        REFERENCES public.deliveries (delivery_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT delivery_reviews_rating_check CHECK (rating >= 1 AND rating <= 5)
+);
+
+ALTER TABLE public.delivery_reviews OWNER TO postgres;
+
+-- Table: public.delivery_statuses
+CREATE TABLE IF NOT EXISTS public.delivery_statuses
+(
+    status_id INTEGER NOT NULL DEFAULT nextval('delivery_statuses_status_id_seq'::regclass),
+    status VARCHAR(50) NOT NULL,
+    CONSTRAINT delivery_statuses_pkey PRIMARY KEY (status_id),
+    CONSTRAINT delivery_statuses_status_key UNIQUE (status)
+);
+
+ALTER TABLE public.delivery_statuses OWNER TO postgres;
+
+-- Table: public.item_addons
+CREATE TABLE IF NOT EXISTS public.item_addons
+(
+    addon_id BIGINT NOT NULL DEFAULT nextval('item_addons_addon_id_seq'::regclass),
+    item_id BIGINT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    price NUMERIC(10,2) NOT NULL,
+    is_available BOOLEAN DEFAULT TRUE,
+    CONSTRAINT item_addons_pkey PRIMARY KEY (addon_id),
+    CONSTRAINT item_addons_item_id_fkey FOREIGN KEY (item_id)
+        REFERENCES public.items (item_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT item_addons_price_check CHECK (price >= 0)
+);
+
+ALTER TABLE public.item_addons OWNER TO postgres;
+
+-- Table: public.item_availability
+CREATE TABLE IF NOT EXISTS public.item_availability
+(
+    availability_id BIGINT NOT NULL DEFAULT nextval('item_availability_availability_id_seq'::regclass),
+    item_id BIGINT NOT NULL,
+    status item_availability_status NOT NULL DEFAULT 'available'::item_availability_status,
+    effective_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT item_availability_pkey PRIMARY KEY (availability_id),
+    CONSTRAINT item_availability_item_id_fkey FOREIGN KEY (item_id)
+        REFERENCES public.items (item_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.item_availability OWNER TO postgres;
+
+-- Table: public.item_media
+CREATE TABLE IF NOT EXISTS public.item_media
+(
+    media_id BIGINT NOT NULL DEFAULT nextval('item_media_media_id_seq'::regclass),
+    item_id BIGINT NOT NULL,
+    media_url TEXT NOT NULL,
+    media_type VARCHAR(5),
+    is_primary BOOLEAN DEFAULT FALSE,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT item_media_pkey PRIMARY KEY (media_id),
+    CONSTRAINT item_media_item_id_fkey FOREIGN KEY (item_id)
+        REFERENCES public.items (item_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT item_media_media_type_check CHECK (media_type::TEXT = ANY (ARRAY['image', 'video']))
+);
+
+ALTER TABLE public.item_media OWNER TO postgres;
+
+-- Table: public.item_reviews
+CREATE TABLE IF NOT EXISTS public.item_reviews
+(
+    review_id BIGINT NOT NULL DEFAULT nextval('item_reviews_review_id_seq'::regclass),
+    order_id BIGINT NOT NULL,
+    rating INTEGER NOT NULL,
+    comment TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT item_reviews_pkey PRIMARY KEY (review_id),
+    CONSTRAINT item_reviews_order_id_key UNIQUE (order_id),
+    CONSTRAINT item_reviews_order_id_fkey FOREIGN KEY (order_id)
+        REFERENCES public.orders (order_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT item_reviews_rating_check CHECK (rating >= 1 AND rating <= 5)
+);
+
+ALTER TABLE public.item_reviews OWNER TO postgres;
+
+-- Table: public.item_tags
+CREATE TABLE IF NOT EXISTS public.item_tags
+(
+    item_id BIGINT NOT NULL,
+    tag_id BIGINT NOT NULL,
+    CONSTRAINT item_tags_pkey PRIMARY KEY (item_id, tag_id),
+    CONSTRAINT item_tags_item_id_fkey FOREIGN KEY (item_id)
+        REFERENCES public.items (item_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT item_tags_tag_id_fkey FOREIGN KEY (tag_id)
+        REFERENCES public.tags (tag_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.item_tags OWNER TO postgres;
+
+-- Table: public.items
+CREATE TABLE IF NOT EXISTS public.items
+(
+    item_id BIGINT NOT NULL DEFAULT nextval('items_item_id_seq'::regclass),
+    user_id BIGINT NOT NULL,
+    category_id BIGINT,
+    name TEXT NOT NULL,
+    description TEXT,
+    base_price NUMERIC(10,2) NOT NULL,
+    preparation_time INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT items_pkey PRIMARY KEY (item_id),
+    CONSTRAINT items_category_id_fkey FOREIGN KEY (category_id)
+        REFERENCES public.categories (category_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL,
+    CONSTRAINT items_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT items_base_price_check CHECK (base_price > 0),
+    CONSTRAINT items_preparation_time_check CHECK (preparation_time > 0)
+);
+
+ALTER TABLE public.items OWNER TO postgres;
+
+-- Table: public.items_table
+CREATE TABLE IF NOT EXISTS public.items_table
+(
+    item_id BIGINT NOT NULL DEFAULT nextval('items_table_item_id_seq'::regclass),
+    user_id BIGINT NOT NULL,
+    item_name VARCHAR(255) NOT NULL,
+    price NUMERIC(10,2) NOT NULL,
+    tags TEXT[],
+    images TEXT[],
+    create_time TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    description TEXT,
+    video_url TEXT,
+    CONSTRAINT items_table_pkey PRIMARY KEY (item_id),
+    CONSTRAINT fk_user FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+
+ALTER TABLE public.items_table OWNER TO postgres;
+
+-- Table: public.messages
+CREATE TABLE IF NOT EXISTS public.messages
+(
+    message_id BIGINT NOT NULL DEFAULT nextval('messages_message_id_seq'::regclass),
+    sender_id BIGINT NOT NULL,
+    receiver_id BIGINT NOT NULL,
+    content TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT messages_pkey PRIMARY KEY (message_id),
+    CONSTRAINT messages_receiver_id_fkey FOREIGN KEY (receiver_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT messages_check CHECK (sender_id <> receiver_id)
+);
+
+ALTER TABLE public.messages OWNER TO postgres;
+
+-- Table: public.order_addons
+CREATE TABLE IF NOT EXISTS public.order_addons
+(
+    order_addon_id BIGINT NOT NULL DEFAULT nextval('order_addons_order_addon_id_seq'::regclass),
+    order_item_id BIGINT NOT NULL,
+    addon_id BIGINT NOT NULL,
+    quantity INTEGER NOT NULL,
+    unit_price NUMERIC(10,2) NOT NULL,
+    subtotal NUMERIC(10,2) GENERATED ALWAYS AS (((quantity)::numeric * unit_price)) STORED,
+    CONSTRAINT order_addons_pkey PRIMARY KEY (order_addon_id),
+    CONSTRAINT order_addons_order_item_id_addon_id_key UNIQUE (order_item_id, addon_id),
+    CONSTRAINT order_addons_addon_id_fkey FOREIGN KEY (addon_id)
+        REFERENCES public.item_addons (addon_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT order_addons_order_item_id_fkey FOREIGN KEY (order_item_id)
+        REFERENCES public.order_items (order_item_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT order_addons_quantity_check CHECK (quantity > 0),
+    CONSTRAINT order_addons_unit_price_check CHECK (unit_price >= 0::numeric)
+);
+
+ALTER TABLE public.order_addons OWNER TO postgres;
+
+-- Table: public.order_items
+CREATE TABLE IF NOT EXISTS public.order_items
+(
+    order_item_id BIGINT NOT NULL DEFAULT nextval('order_items_order_item_id_seq'::regclass),
+    order_id BIGINT NOT NULL,
+    item_id BIGINT NOT NULL,
+    quantity INTEGER NOT NULL,
+    unit_price NUMERIC(10,2) NOT NULL,
+    subtotal NUMERIC(10,2) GENERATED ALWAYS AS (((quantity)::numeric * unit_price)) STORED,
+    CONSTRAINT order_items_pkey PRIMARY KEY (order_item_id),
+    CONSTRAINT order_items_item_id_fkey FOREIGN KEY (item_id)
+        REFERENCES public.items (item_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT order_items_order_id_fkey FOREIGN KEY (order_id)
+        REFERENCES public.orders (order_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT order_items_quantity_check CHECK (quantity > 0),
+    CONSTRAINT order_items_unit_price_check CHECK (unit_price >= 0::numeric)
+);
+
+ALTER TABLE public.order_items OWNER TO postgres;
+
+-- Table: public.order_statuses
+CREATE TABLE IF NOT EXISTS public.order_statuses
+(
+    status_id INTEGER NOT NULL DEFAULT nextval('order_statuses_status_id_seq'::regclass),
+    status VARCHAR(50) NOT NULL,
+    order_item_id BIGINT NOT NULL,
+    description TEXT,
+    CONSTRAINT order_statuses_pkey PRIMARY KEY (status_id),
+    CONSTRAINT order_statuses_status_key UNIQUE (status),
+    CONSTRAINT order_statuses_order_item_id_fkey FOREIGN KEY (order_item_id)
+        REFERENCES public.order_items (order_item_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.order_statuses OWNER TO postgres;
+
+-- Table: public.orders
+CREATE TABLE IF NOT EXISTS public.orders
+(
+    order_id BIGINT NOT NULL DEFAULT nextval('orders_order_id_seq'::regclass),
+    buyer_id BIGINT NOT NULL,
+    seller_id BIGINT NOT NULL,
+    reel_id BIGINT,
+    total_amount NUMERIC(10,2) NOT NULL,
+    delivery_fee NUMERIC(10,2) DEFAULT 0,
+    shipping_address TEXT NOT NULL,
+    payment_status payment_status_type NOT NULL,
+    payment_method payment_method_type NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT orders_pkey PRIMARY KEY (order_id),
+    CONSTRAINT orders_buyer_id_fkey FOREIGN KEY (buyer_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT orders_reel_id_fkey FOREIGN KEY (reel_id)
+        REFERENCES public.reels (reel_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL,
+    CONSTRAINT orders_seller_id_fkey FOREIGN KEY (seller_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT orders_total_amount_check CHECK (total_amount > 0::numeric),
+    CONSTRAINT orders_delivery_fee_check CHECK (delivery_fee >= 0::numeric)
+);
+
+ALTER TABLE public.orders OWNER TO postgres;
+
+-- Table: public.reels
+CREATE TABLE IF NOT EXISTS public.reels
+(
+    reel_id INTEGER NOT NULL DEFAULT nextval('reels_reel_id_seq'::regclass),
+    reel_url TEXT NOT NULL,
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    item_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    upvotes INTEGER DEFAULT 0,
+    saves INTEGER DEFAULT 0,
+    shares INTEGER DEFAULT 0,
+    CONSTRAINT reels_pkey PRIMARY KEY (reel_id),
+    CONSTRAINT reels_item_id_fkey FOREIGN KEY (item_id)
+        REFERENCES public.items (item_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT reels_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.reels OWNER TO postgres;
+
+-- Table: public.stories
+CREATE TABLE IF NOT EXISTS public.stories
+(
+    story_id BIGINT NOT NULL DEFAULT nextval('stories_story_id_seq'::regclass),
+    user_id BIGINT NOT NULL,
+    media_url TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    CONSTRAINT stories_pkey PRIMARY KEY (story_id),
+    CONSTRAINT stories_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.stories OWNER TO postgres;
+
+-- Table: public.stripe_payments
+CREATE TABLE IF NOT EXISTS public.stripe_payments
+(
+    payment_id BIGINT NOT NULL DEFAULT nextval('stripe_payments_payment_id_seq'::regclass),
+    order_id BIGINT NOT NULL,
+    payment_intent_id VARCHAR(255) NOT NULL,
+    customer_id VARCHAR(255),
+    amount NUMERIC(10,2) NOT NULL,
+    currency VARCHAR(3) DEFAULT 'USD',
+    status payment_status_type NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT stripe_payments_pkey PRIMARY KEY (payment_id),
+    CONSTRAINT stripe_payments_order_id_key UNIQUE (order_id),
+    CONSTRAINT stripe_payments_payment_intent_id_key UNIQUE (payment_intent_id),
+    CONSTRAINT stripe_payments_order_id_fkey FOREIGN KEY (order_id)
+        REFERENCES public.orders (order_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.stripe_payments OWNER TO postgres;
+
+-- Table: public.tags
+CREATE TABLE IF NOT EXISTS public.tags
+(
+    tag_id BIGINT NOT NULL DEFAULT nextval('tags_tag_id_seq'::regclass),
+    tag_name VARCHAR(50) NOT NULL,
+    CONSTRAINT tags_pkey PRIMARY KEY (tag_id),
+    CONSTRAINT tags_tag_name_key UNIQUE (tag_name)
+);
+
+ALTER TABLE public.tags OWNER TO postgres;
+
+-- Table: public.user_follows
+CREATE TABLE IF NOT EXISTS public.user_follows
+(
+    follower_id BIGINT NOT NULL,
+    following_id BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT user_follows_pkey PRIMARY KEY (follower_id, following_id),
+    CONSTRAINT user_follows_follower_id_fkey FOREIGN KEY (follower_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT user_follows_following_id_fkey FOREIGN KEY (following_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT no_self_follow CHECK (follower_id <> following_id)
+);
+
+ALTER TABLE public.user_follows OWNER TO postgres;
+
+-- Table: public.users
+CREATE TABLE IF NOT EXISTS public.users
+(
+    user_id BIGINT NOT NULL DEFAULT nextval('users_user_id_seq'::regclass),
+    username VARCHAR(50) NOT NULL,
+    email VARCHAR(100),
+    phone VARCHAR(20),
+    password VARCHAR(255),
+    role VARCHAR(50),
+    longitude DOUBLE PRECISION,
+    latitude DOUBLE PRECISION,
+    created_date TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    image_url TEXT,
+    location_name TEXT,
+    rating NUMERIC(3,2) DEFAULT 4.9,
+    CONSTRAINT users_pkey PRIMARY KEY (user_id)
+);
+
+ALTER TABLE public.users OWNER TO postgres;
+
+-- Create sequences first
+CREATE SEQUENCE IF NOT EXISTS public.reel_likes_like_id_seq;
+CREATE SEQUENCE IF NOT EXISTS public.reel_saves_save_id_seq;
+CREATE SEQUENCE IF NOT EXISTS public.reel_comments_comment_id_seq;
+
+-- Table: public.reel_likes
+CREATE TABLE IF NOT EXISTS public.reel_likes
+(
+    like_id BIGINT NOT NULL DEFAULT nextval('reel_likes_like_id_seq'::regclass),
+    reel_id INTEGER NOT NULL,
+    user_id BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT reel_likes_pkey PRIMARY KEY (like_id),
+    CONSTRAINT reel_likes_reel_id_user_id_key UNIQUE (reel_id, user_id),
+    CONSTRAINT reel_likes_reel_id_fkey FOREIGN KEY (reel_id)
+        REFERENCES public.reels (reel_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT reel_likes_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.reel_likes OWNER TO postgres;
+
+-- Table: public.reel_saves
+CREATE TABLE IF NOT EXISTS public.reel_saves
+(
+    save_id BIGINT NOT NULL DEFAULT nextval('reel_saves_save_id_seq'::regclass),
+    reel_id INTEGER NOT NULL,
+    user_id BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT reel_saves_pkey PRIMARY KEY (save_id),
+    CONSTRAINT reel_saves_reel_id_user_id_key UNIQUE (reel_id, user_id),
+    CONSTRAINT reel_saves_reel_id_fkey FOREIGN KEY (reel_id)
+        REFERENCES public.reels (reel_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT reel_saves_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.reel_saves OWNER TO postgres;
+
+-- Table: public.reel_comments
+CREATE TABLE IF NOT EXISTS public.reel_comments
+(
+    comment_id BIGINT NOT NULL DEFAULT nextval('reel_comments_comment_id_seq'::regclass),
+    reel_id INTEGER NOT NULL,
+    user_id BIGINT NOT NULL,
+    comment TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT reel_comments_pkey PRIMARY KEY (comment_id),
+    CONSTRAINT reel_comments_reel_id_fkey FOREIGN KEY (reel_id)
+        REFERENCES public.reels (reel_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT reel_comments_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.users (user_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+);
+
+ALTER TABLE public.reel_comments OWNER TO postgres;
+
+
+
